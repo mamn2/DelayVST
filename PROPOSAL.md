@@ -16,3 +16,9 @@ For this project, I will be using the JUCE framework instead of openFrameworks. 
 
 While my experience in JUCE is rather limited, the documentation is excellent and I have familiarized myself with many classes and the features they provide. I am also somewhat familiar with common audio processing techniques. Since it is crucial for me to learn this framework for the work that I am interested in, I am willing to put an immense amount of effort into this project to overcome the lack of support for the JUCE framework as it is unlikely that the course staff is familar with the tool.
 
+Here is a link for information on the JUCE framework
+
+# STEINBERG
+In order to create an actual VST file, I will need to use the Steinberg Developer SDK for VSTs. 
+Here is a link for information about the SDK: https://www.steinberg.net/en/company/developers.html
+
