@@ -34,6 +34,17 @@ DelayPluginAudioProcessorEditor::DelayPluginAudioProcessorEditor (DelayPluginAud
         *gainParameter = gainControlSlider.getValue();
     };
     
+    //Notifies host that drag gesture has begun
+    //Meant mostly for debuggin and cross-platform purposes
+    gainControlSlider.onDragStart = [gainParameter] {
+        gainParameter->beginChangeGesture();
+    };
+
+    //Notifies host that drag gesture has ended
+    gainControlSlider.onDragEnd = [gainParameter] {
+        gainParameter->endChangeGesture();
+    };
+    
     addAndMakeVisible(gainControlSlider);
     
 }
