@@ -26,10 +26,25 @@ DelayPluginAudioProcessor::DelayPluginAudioProcessor()
 {
     addParameter(gainParameter = new AudioParameterFloat("gain", "Gain", 0.0f, 1.0f, 0.5f));
     smoothedGainValue = gainParameter->get();
+    
+    circularBufferLength = 0;
+    leftCircularBuffer = nullptr;
+    rightCircularBuffer = nullptr;
+    bufferWriteHead = 0;
+    delayReadHead = 0;
+    delayTimeSamples = 0;
+    feedbackLeft = 0;
+    feedbackRight = 0;
 }
 
 DelayPluginAudioProcessor::~DelayPluginAudioProcessor()
 {
+    if (rightCircularBuffer != nullptr) {
+        delete[] rightCircularBuffer;
+    }
+    if (leftCircularBuffer != nullptr) {
+        delete[] leftCircularBuffer;
+    }
 }
 
 //==============================================================================
@@ -99,6 +114,20 @@ void DelayPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
 {
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
+    
+    delayTimeSamples = sampleRate / 2;
+    
+    circularBufferLength = (int) sampleRate * MAX_DELAY_TIME;
+    
+    if (leftCircularBuffer == nullptr) {
+        leftCircularBuffer = new float[circularBufferLength];
+    }
+    
+    if (rightCircularBuffer == nullptr) {
+        rightCircularBuffer = new float[circularBufferLength];
+    }
+    
+    bufferWriteHead = 0;
 }
 
 void DelayPluginAudioProcessor::releaseResources()
@@ -152,7 +181,9 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
         // ..do something to the data...
         for (int sample = 0; sample < buffer.getNumSamples(); sample++)
         {
-            //smoothing the gain value
+            //----------------GAIN----------------//
+            
+            //smooths the gain to control the rate at which the gain changes
             const float gainSmoothCoefficient = 0.004f;
             smoothedGainValue = smoothedGainValue - gainSmoothCoefficient *
                                         (smoothedGainValue - gainParameter->get());
@@ -160,6 +191,38 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
             //for every sample inside the channel I am multiplying by half
             channelLeft[sample] *= smoothedGainValue;
             channelRight[sample] *= smoothedGainValue;
+            
+            
+            //---------------DELAY-----------------//
+            
+            leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
+            rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
+            
+            delayReadHead = bufferWriteHead - delayTimeSamples;
+            
+            if (delayReadHead < 0) {
+                delayReadHead += circularBufferLength;
+            }
+            
+            float delaySampleLeft = leftCircularBuffer[(int)delayReadHead];
+            float delaySampleRight = rightCircularBuffer[(int)delayReadHead];
+            
+            //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
+            feedbackLeft = delaySampleLeft * .8;
+            feedbackRight = delaySampleRight * .8;
+            
+            //Adds the delay on top of the current buffer
+            buffer.addSample(0, sample, delaySampleLeft);
+            buffer.addSample(1, sample, delaySampleRight);
+            
+            //Moves on to the next node in the buffer
+            bufferWriteHead++;
+            
+            //Switches buffer back to 0 once it goes beyond the length
+            if (bufferWriteHead >= circularBufferLength) {
+                bufferWriteHead = 0;
+            }
+            
         }
 }
 

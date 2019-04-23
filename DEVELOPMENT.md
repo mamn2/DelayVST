@@ -35,3 +35,21 @@ In my distortion effect I can use 3 inputs:
 
 Here is my formula for the clipping effect: 
 currentsig = (((( (2 / pi) * atan(currentsig) ) * blend) + (cleansig * (1 - blend)) ) / 2 ) * volume) * drive
+
+### Gain
+
+Gain is arguably the most simple. It is like volume, except it refers to input rather than output. In order to change the gain you just multiply the incoming signal by your desired gain value.
+
+### Delay
+
+Delays are used in a very wide range of DSP effects and are quite fundamental to music plugins.
+
+A delay is an audio effect which takes an input signal, stores it, and then plays it back after a pre-determined period of time. The delay may be played back multiple times to create the sound effect of a repeating, decaying, echo. 
+
+The length of the delay is equal to sample rate * delayTime(in seconds). For example if our sample rate is 44.1K and our delay time is 2 seconds, then the length of the delay is 88.2K samples. 
+
+#### Circular Buffer
+
+Delays are stored in a data structure called a circular buffer in order to conserve memory and avoid overloading the RAM. In the case of delays it is safe to overwrite the old data since the delayed signal will already have played back by then. You can read about circular buffers here: https://en.wikipedia.org/wiki/Circular_buffer
+
+

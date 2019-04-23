@@ -12,6 +12,8 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 
+#define MAX_DELAY_TIME 2
+
 //==============================================================================
 /**
 */
@@ -59,6 +61,18 @@ private:
     
     AudioParameterFloat* gainParameter;
     float smoothedGainValue;
+    
+    float* leftCircularBuffer;
+    float* rightCircularBuffer;
+    int bufferWriteHead;
+    
+    int circularBufferLength;
+    
+    float delayTimeSamples;
+    float delayReadHead;
+    
+    float feedbackLeft;
+    float feedbackRight;
     
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayPluginAudioProcessor)
