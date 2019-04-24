@@ -25,14 +25,16 @@ public:
     //==============================================================================
     void paint (Graphics&) override;
     void resized() override;
+    void connectSliderToParam(int paramNum, int x, int y, int width, int height, Slider& slider);
     
 
 private:
     
     Slider gainControlSlider;
+    Slider delayTimeSlider;
+    Slider dryWetSlider;
+    Slider feedbackSlider;
     
-    // This reference is provided as a quick way for your editor to
-    // access the processor object that created it.
     DelayPluginAudioProcessor& processor;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayPluginAudioProcessorEditor)

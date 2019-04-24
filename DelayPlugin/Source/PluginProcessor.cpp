@@ -24,8 +24,15 @@ DelayPluginAudioProcessor::DelayPluginAudioProcessor()
                        )
 #endif
 {
-    addParameter(gainParameter = new AudioParameterFloat("gain", "Gain", 0.0f, 1.0f, 0.5f));
-    smoothedGainValue = gainParameter->get();
+    addParameter(gainParam = new AudioParameterFloat("gain", "Gain", 0.0f, 1.0f, 0.5f));
+    smoothedGainValue = gainParam->get();
+    
+    addParameter(delayTimeParam = new AudioParameterFloat("delay", "Delay", 0.0f, 1.99f, 1.0f));
+    
+    addParameter(dryWetParam = new AudioParameterFloat("drywet", "Dry Wet", 0.01f, MAX_DELAY_TIME, 0.5f));
+    
+    addParameter(feedbackParam = new AudioParameterFloat("feedback", "Feedback", 0.0f, 0.99f, 0.5f));
+    
     
     circularBufferLength = 0;
     leftCircularBuffer = nullptr;
@@ -33,8 +40,10 @@ DelayPluginAudioProcessor::DelayPluginAudioProcessor()
     bufferWriteHead = 0;
     delayReadHead = 0;
     delayTimeSamples = 0;
+    
     feedbackLeft = 0;
     feedbackRight = 0;
+    
 }
 
 DelayPluginAudioProcessor::~DelayPluginAudioProcessor()
@@ -115,7 +124,7 @@ void DelayPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
     
-    delayTimeSamples = sampleRate / 2;
+    delayTimeSamples = delayTimeParam->get() * sampleRate;
     
     circularBufferLength = (int) sampleRate * MAX_DELAY_TIME;
     
@@ -174,56 +183,64 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
     // this code if your algorithm always overwrites all the output channels.
     for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, buffer.getNumSamples());
+    
+    delayTimeSamples = getSampleRate() * delayTimeParam->get();
 
-        float* channelLeft = buffer.getWritePointer(0);
-        float* channelRight = buffer.getWritePointer(1);
+    float* channelLeft = buffer.getWritePointer(0);
+    float* channelRight = buffer.getWritePointer(1);
 
-        // ..do something to the data...
-        for (int sample = 0; sample < buffer.getNumSamples(); sample++)
-        {
-            //----------------GAIN----------------//
-            
-            //smooths the gain to control the rate at which the gain changes
-            const float gainSmoothCoefficient = 0.004f;
-            smoothedGainValue = smoothedGainValue - gainSmoothCoefficient *
-                                        (smoothedGainValue - gainParameter->get());
-            
-            //for every sample inside the channel I am multiplying by half
-            channelLeft[sample] *= smoothedGainValue;
-            channelRight[sample] *= smoothedGainValue;
-            
-            
-            //---------------DELAY-----------------//
-            
-            leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
-            rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
-            
-            delayReadHead = bufferWriteHead - delayTimeSamples;
-            
-            if (delayReadHead < 0) {
-                delayReadHead += circularBufferLength;
-            }
-            
-            float delaySampleLeft = leftCircularBuffer[(int)delayReadHead];
-            float delaySampleRight = rightCircularBuffer[(int)delayReadHead];
-            
-            //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
-            feedbackLeft = delaySampleLeft * .8;
-            feedbackRight = delaySampleRight * .8;
-            
-            //Adds the delay on top of the current buffer
-            buffer.addSample(0, sample, delaySampleLeft);
-            buffer.addSample(1, sample, delaySampleRight);
-            
-            //Moves on to the next node in the buffer
-            bufferWriteHead++;
-            
-            //Switches buffer back to 0 once it goes beyond the length
-            if (bufferWriteHead >= circularBufferLength) {
-                bufferWriteHead = 0;
-            }
-            
+    // ..do something to the data...
+    for (int sample = 0; sample < buffer.getNumSamples(); sample++)
+    {
+        //----------------GAIN----------------//
+        
+        //smooths the gain to control the rate at which the gain changes
+        const float gainSmoothCoefficient = 0.004f;
+        smoothedGainValue = smoothedGainValue - gainSmoothCoefficient *
+                                    (smoothedGainValue - gainParam->get());
+        
+        //for every sample inside the channel I am multiplying by half
+        channelLeft[sample] *= smoothedGainValue;
+        channelRight[sample] *= smoothedGainValue;
+        
+        
+        //---------------DELAY-----------------//
+        
+        leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
+        rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
+        
+        delayReadHead = bufferWriteHead - delayTimeSamples;
+        
+        if (delayReadHead < 0) {
+            delayReadHead += circularBufferLength;
         }
+        
+        float delaySampleLeft = leftCircularBuffer[(int)delayReadHead];
+        float delaySampleRight = rightCircularBuffer[(int)delayReadHead];
+        
+        //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
+        //These are output signals
+        feedbackLeft = delaySampleLeft * feedbackParam->get();
+        feedbackRight = delaySampleRight * feedbackParam->get();
+        
+        float drySampleLeft = buffer.getSample(0, sample);
+        float drySampleRight = buffer.getSample(1, sample);
+        
+        //Adds the delay on top of the current buffer
+        buffer.setSample(0, sample, drySampleLeft * (1 - dryWetParam->get()) +
+                         delaySampleLeft * dryWetParam->get());
+        buffer.setSample(1, sample, drySampleRight * (1 - dryWetParam->get()) +
+                         delaySampleRight * dryWetParam->get());
+        
+        //Moves on to the next node in the buffer
+        bufferWriteHead++;
+        
+        //Switches buffer back to 0 once it goes beyond the length
+        if (bufferWriteHead >= circularBufferLength) {
+            bufferWriteHead = 0;
+        }
+        
+    }
 }
 
 //==============================================================================

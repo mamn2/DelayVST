@@ -58,19 +58,29 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
 private:
+
+    //user input parameters
+    AudioParameterFloat* gainParam;
     
-    AudioParameterFloat* gainParameter;
+    AudioParameterFloat* delayTimeParam;
+    
+    //dry, wet signal values. See DEVELOPMENT.md if you are unfamiliar with dry/wet
+    AudioParameterFloat* dryWetParam;
+    
+    AudioParameterFloat* feedbackParam;
+    
+    //gain values
     float smoothedGainValue;
     
+    //delay values
     float* leftCircularBuffer;
     float* rightCircularBuffer;
     int bufferWriteHead;
-    
     int circularBufferLength;
-    
     float delayTimeSamples;
     float delayReadHead;
     
+    //feedback values
     float feedbackLeft;
     float feedbackRight;
     

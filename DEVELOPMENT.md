@@ -6,7 +6,7 @@ Audio Processing uses a thread that is SEPARATE from the GUI, MIDI input process
 
 ### Signal Smoothing
 
-When changing audio signal parameters with a knob, we often get crackling sounds. This is because the parameter is being set at whatever rate you are changing it, in real time. In order to avoid this, DSP engineers use signal smoothing. Here's how I did it:
+When changing audio signal parameters with a knob, we often get crackling sounds. This is because the parameter is being set at whatever rate you are changing it, in real time. Because of this, we have discontinuities in our signal, and this causes the processor to send a bunch of crap signals to the output wherever there is a discontinuity. In order to avoid this, DSP engineers use signal smoothing. Here's how I did it:
 
 We have a generic formula for smoothing the signal:
 Let x = smoothed value, y = target value, and z = scalar (speed)
@@ -16,6 +16,18 @@ z-y is the distance from where we are to where we want to be.
 
 For example, if we set our smoothing coefficient to 0.5, our target value to 1, and our scalar to 0.5, we get this equation:
 x = .5 - .5 * (.5 - 1.0)
+
+### Dry and wet signals
+
+A dry signal is the unprocessed raw sound that is being produced by the instrument. A wet signal is the sound that is outputted from the processing block. Ideally, we would like to maintain independent control of our dry signal and wet signal.
+
+In order to accomplish this, we will multiply the input by the dry amount, and the output by the wet amount. The dry and wet amount are determined by user input. For example if the user wants to use only the dry signal, i. e the user doesn't want the signal value to change at all, they can set the dry/wet parameter to 0. If they only want to use the processed signal, they can set the dry wet value to 1. They can also set a value in between to get a mix of both the dry signal and the wet signal.
+
+### Interpolation
+
+Interpolation is a technique for inferring a data point between 2 data points. In digital audio, our time domain is not continuous, it is made up of thousands of samples every second. 
+
+When we change our delay parameter, we have to tell the audio processor to replay the signal after a certain amount of time. However, the audio processor doesn't really have a concept of time, and so instead it uses samples. So we have to tell it how many samples are in between 2 playings. But in order to do this we have to convert time (in seconds) to number of samples. Time is represented as a floating point value, and therefore multiplying it by an integer can get you a value that is not an integer. For example if we set our delay time to be .555 seconds, the delay time converted to samples is 24,475.5. However samples are not floating point values, a sample is represented as an integer (obviously), so there is no index in the buffer for this value. 
 
 ## Cross Platform Audio Development
 
