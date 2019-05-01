@@ -131,13 +131,13 @@ void DelayPluginAudioProcessor::changeProgramName (int index, const String& newN
 //==============================================================================
 void DelayPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
     
+    // # samples = time * sample rate
     delayTimeSamples = delayTimeParam->get() * sampleRate;
     
     circularBufferLength = (int) sampleRate * MAX_DELAY_TIME;
     
+    //creates the left buffer based on the length
     if (leftCircularBuffer == nullptr) {
         leftCircularBuffer = new float[circularBufferLength];
     }
@@ -145,6 +145,7 @@ void DelayPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     //zeroes all the memory in left buffer
     zeromem(leftCircularBuffer, circularBufferLength * sizeof(float));
     
+    //creayes the right buffer based on the length
     if (rightCircularBuffer == nullptr) {
         rightCircularBuffer = new float[circularBufferLength];
     }
@@ -152,14 +153,16 @@ void DelayPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
     //zeroes all the memory in right buffer
     zeromem(rightCircularBuffer, circularBufferLength * sizeof(float));
     
+    //start writing at the beginning
     bufferWriteHead = 0;
+    
+    //smooth value should start at the same value as the time
     delayTimeSmoothValue = delayTimeParam->get();
+    
 }
 
 void DelayPluginAudioProcessor::releaseResources()
 {
-    // When playback stops, you can use this as an opportunity to free up any
-    // spare memory, etc.
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
@@ -201,14 +204,20 @@ void DelayPluginAudioProcessor::applyGainToChannels(int sample) {
 
 void DelayPluginAudioProcessor::applyDelayToChannels(AudioBuffer<float>& buffer, int sample) {
     
-    delayTimeSmoothValue = delayTimeSmoothValue - .001 * (delayTimeSmoothValue - delayTimeParam->get());
+    const float delaySmoothValue = 0.001f;
+    
+    //smooths the delay parameter so that we don't get bad values between shifting of parameter
+    delayTimeSmoothValue = delayTimeSmoothValue - delaySmoothValue
+                         * (delayTimeSmoothValue - delayTimeParam->get());
     delayTimeSamples = getSampleRate() * delayTimeSmoothValue;
     
+    //adds the feedback look. This is a summation that happens with every sample
     leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
     rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
     
     delayReadHead = bufferWriteHead - delayTimeSamples;
     
+    //make sure we aren't going out of bounds of read head
     if (delayReadHead < 0) {
         delayReadHead += circularBufferLength;
     }
@@ -221,6 +230,8 @@ void DelayPluginAudioProcessor::applyDelayToChannels(AudioBuffer<float>& buffer,
         nextBufferValue -= circularBufferLength;
     }
     
+    //interpolates the value so that we can access values in the buffer that are not pure integers
+    //If an index is a decimal, it will approximate the values from sample below and sample above.
     float delaySampleLeft = interpolatedValue(leftCircularBuffer[delayReadHeadConcat],
                                               leftCircularBuffer[nextBufferValue],
                                               delayReadHeadPhase);
@@ -228,11 +239,12 @@ void DelayPluginAudioProcessor::applyDelayToChannels(AudioBuffer<float>& buffer,
                                                rightCircularBuffer[nextBufferValue],
                                                delayReadHeadPhase);
     
-    //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
+    //Causes the feedback look by multiplying the delay by a coefficient, diminishing effect over time
     //These are output signals
     feedbackLeft = delaySampleLeft * feedbackParam->get();
     feedbackRight = delaySampleRight * feedbackParam->get();
     
+    //Gets the dry sample before adding the delay
     float drySampleLeft = buffer.getSample(0, sample);
     float drySampleRight = buffer.getSample(1, sample);
     
@@ -245,7 +257,7 @@ void DelayPluginAudioProcessor::applyDelayToChannels(AudioBuffer<float>& buffer,
     //Moves on to the next node in the buffer
     bufferWriteHead++;
     
-    //Switches buffer back to 0 once it goes beyond the length
+    //Switches buffer back to 0 once it goes beyond the length, ensures we don't go out of bounds
     if (bufferWriteHead >= circularBufferLength) {
         bufferWriteHead = 0;
     }

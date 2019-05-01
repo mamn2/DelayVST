@@ -15,6 +15,7 @@
 DelayPluginAudioProcessorEditor::DelayPluginAudioProcessorEditor (DelayPluginAudioProcessor& p)
     : AudioProcessorEditor (&p), processor (p)
 {
+    
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
     setSize (400, 300);
@@ -23,7 +24,6 @@ DelayPluginAudioProcessorEditor::DelayPluginAudioProcessorEditor (DelayPluginAud
     connectSliderToParam(1, 100, 60, 100, 100, delayTimeSlider);
     connectSliderToParam(2, 200, 60, 100, 100, dryWetSlider);
     connectSliderToParam(3, 300, 60, 100, 100, feedbackSlider);
-    
 
 }
 
@@ -84,7 +84,6 @@ void DelayPluginAudioProcessorEditor::connectSliderToParam(int paramNum, int x, 
     slider.onDragEnd = [thisParam] {
         thisParam->endChangeGesture();
     };
-    
     
     addAndMakeVisible(slider);
     
