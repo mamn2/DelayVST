@@ -69,4 +69,4 @@ Delays are stored in a data structure called a circular buffer in order to conse
 
 ## Testing
 
-Testing is fairly difficult with audio files. I have found that the most effective way of testing is by adjusting your parameters on a sine wave.
+Testing is fairly difficult with audio files. I have found that the most effective way of testing is by adjusting your parameters on a sine wave. We use a sine wave because it has low harmonics and allows you to hear what is wrong with your plugin far more effectively than say, a piano sound, since piano has a lot of overtones.

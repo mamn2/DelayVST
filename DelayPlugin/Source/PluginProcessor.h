@@ -25,6 +25,8 @@ public:
     ~DelayPluginAudioProcessor();
 
     //==============================================================================
+    //Creates parameters that user can change to adjust the delay/gain
+    void createNewParams();
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
 
@@ -59,6 +61,11 @@ public:
     
     //calculates an interpolated value using the linear interpolation method. 
     float interpolatedValue(float sampleOne, float sampleTwo, float phase);
+    
+    //applies gain to all channels for this processing unit
+    void applyGainToChannels(int sample);
+    //applies delay to all channels for this processing unit
+    void applyDelayToChannels(AudioBuffer<float>& buffer, int sample);
     
     float* channelLeft;
     float* channelRight;

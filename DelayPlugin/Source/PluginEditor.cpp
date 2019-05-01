@@ -19,12 +19,6 @@ DelayPluginAudioProcessorEditor::DelayPluginAudioProcessorEditor (DelayPluginAud
     // editor's size to whatever you need it to be.
     setSize (400, 300);
     
-    addAndMakeVisible(liveAudioScroller);
-    
-    const float** inputChannel = const_cast<const float**>(&(processor.channelLeft));
-    
-    liveAudioScroller.audioDeviceIOCallback(inputChannel, 1, &(processor.channelLeft), 1, 2);
-    
     connectSliderToParam(0, 0, 60, 100, 100, gainControlSlider);
     connectSliderToParam(1, 100, 60, 100, 100, delayTimeSlider);
     connectSliderToParam(2, 200, 60, 100, 100, dryWetSlider);
@@ -58,7 +52,6 @@ void DelayPluginAudioProcessorEditor::paint (Graphics& g)
 
 void DelayPluginAudioProcessorEditor::resized()
 {
-    liveAudioScroller.setBounds(getLocalBounds().removeFromBottom (100).reduced (8));
 }
 
 void DelayPluginAudioProcessorEditor::connectSliderToParam(int paramNum, int x, int y,

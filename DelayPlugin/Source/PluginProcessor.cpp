@@ -26,6 +26,24 @@ DelayPluginAudioProcessor::DelayPluginAudioProcessor()
                        )
 #endif
 {
+    
+    createNewParams();
+    
+    //initializing instance variables
+    circularBufferLength = 0;
+    leftCircularBuffer = nullptr;
+    rightCircularBuffer = nullptr;
+    bufferWriteHead = 0;
+    delayReadHead = 0;
+    delayTimeSamples = 0;
+    delayTimeSmoothValue = 0;
+    feedbackLeft = 0;
+    feedbackRight = 0;
+    
+}
+
+void DelayPluginAudioProcessor::createNewParams() {
+    
     addParameter(gainParam = new AudioParameterFloat("gain", "Gain", 0.0f, 1.0f, 0.5f));
     smoothedGainValue = gainParam->get();
     
@@ -35,20 +53,9 @@ DelayPluginAudioProcessor::DelayPluginAudioProcessor()
     
     addParameter(feedbackParam = new AudioParameterFloat("feedback", "Feedback", 0.0f, 0.99f, 0.5f));
     
-    
-    circularBufferLength = 0;
-    leftCircularBuffer = nullptr;
-    rightCircularBuffer = nullptr;
-    bufferWriteHead = 0;
-    delayReadHead = 0;
-    delayTimeSamples = 0;
-    delayTimeSmoothValue = 0;
-    
-    feedbackLeft = 0;
-    feedbackRight = 0;
-    
 }
 
+//makes sure we delete all buffer values allocated on the heap
 DelayPluginAudioProcessor::~DelayPluginAudioProcessor()
 {
     if (rightCircularBuffer != nullptr) {
@@ -179,6 +186,72 @@ bool DelayPluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layou
 }
 #endif
 
+void DelayPluginAudioProcessor::applyGainToChannels(int sample) {
+    
+    //smooths the gain to control the rate at which the gain changes
+    const float gainSmoothCoefficient = 0.004f;
+    smoothedGainValue = smoothedGainValue - gainSmoothCoefficient *
+    (smoothedGainValue - gainParam->get());
+    
+    //for every sample inside the channel I am multiplying by half
+    channelLeft[sample] *= smoothedGainValue;
+    channelRight[sample] *= smoothedGainValue;
+    
+}
+
+void DelayPluginAudioProcessor::applyDelayToChannels(AudioBuffer<float>& buffer, int sample) {
+    
+    delayTimeSmoothValue = delayTimeSmoothValue - .001 * (delayTimeSmoothValue - delayTimeParam->get());
+    delayTimeSamples = getSampleRate() * delayTimeSmoothValue;
+    
+    leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
+    rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
+    
+    delayReadHead = bufferWriteHead - delayTimeSamples;
+    
+    if (delayReadHead < 0) {
+        delayReadHead += circularBufferLength;
+    }
+    
+    int delayReadHeadConcat = (int) delayReadHead;
+    //calculates the decimal value in the read head. Ex: if delayReadHead is 555.5, then delayReadHeadFloat = .5, this is the phase value for linear interpolation
+    float delayReadHeadPhase = delayReadHead - delayReadHeadConcat;
+    int nextBufferValue = delayReadHeadConcat + 1;
+    if (nextBufferValue > circularBufferLength) {
+        nextBufferValue -= circularBufferLength;
+    }
+    
+    float delaySampleLeft = interpolatedValue(leftCircularBuffer[delayReadHeadConcat],
+                                              leftCircularBuffer[nextBufferValue],
+                                              delayReadHeadPhase);
+    float delaySampleRight = interpolatedValue(rightCircularBuffer[delayReadHeadConcat],
+                                               rightCircularBuffer[nextBufferValue],
+                                               delayReadHeadPhase);
+    
+    //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
+    //These are output signals
+    feedbackLeft = delaySampleLeft * feedbackParam->get();
+    feedbackRight = delaySampleRight * feedbackParam->get();
+    
+    float drySampleLeft = buffer.getSample(0, sample);
+    float drySampleRight = buffer.getSample(1, sample);
+    
+    //Adds the delay on top of the current buffer
+    buffer.setSample(0, sample, drySampleLeft * (1 - dryWetParam->get()) +
+                     delaySampleLeft * dryWetParam->get());
+    buffer.setSample(1, sample, drySampleRight * (1 - dryWetParam->get()) +
+                     delaySampleRight * dryWetParam->get());
+    
+    //Moves on to the next node in the buffer
+    bufferWriteHead++;
+    
+    //Switches buffer back to 0 once it goes beyond the length
+    if (bufferWriteHead >= circularBufferLength) {
+        bufferWriteHead = 0;
+    }
+    
+}
+
 void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
     ScopedNoDenormals noDenormals;
@@ -204,66 +277,11 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
     {
         //----------------GAIN----------------//
         
-        //smooths the gain to control the rate at which the gain changes
-        const float gainSmoothCoefficient = 0.004f;
-        smoothedGainValue = smoothedGainValue - gainSmoothCoefficient *
-                                    (smoothedGainValue - gainParam->get());
+        applyGainToChannels(sample);
         
-        //for every sample inside the channel I am multiplying by half
-        channelLeft[sample] *= smoothedGainValue;
-        channelRight[sample] *= smoothedGainValue;
+        //---------------DELAY----------------//
         
-        
-        //---------------DELAY-----------------//
-        
-        delayTimeSmoothValue = delayTimeSmoothValue - .001 * (delayTimeSmoothValue - delayTimeParam->get());
-        delayTimeSamples = getSampleRate() * delayTimeSmoothValue;
-        
-        leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
-        rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
-        
-        delayReadHead = bufferWriteHead - delayTimeSamples;
-        
-        if (delayReadHead < 0) {
-            delayReadHead += circularBufferLength;
-        }
-        
-        int delayReadHeadConcat = (int) delayReadHead;
-         //calculates the decimal value in the read head. Ex: if delayReadHead is 555.5, then delayReadHeadFloat = .5, this is the phase value for linear interpolation
-        float delayReadHeadPhase = delayReadHead - delayReadHeadConcat;
-        int nextBufferValue = delayReadHeadConcat + 1;
-        if (nextBufferValue > circularBufferLength) {
-            nextBufferValue -= circularBufferLength;
-        }
-        
-        float delaySampleLeft = interpolatedValue(leftCircularBuffer[delayReadHeadConcat],
-                                                  leftCircularBuffer[nextBufferValue],
-                                                  delayReadHeadPhase);
-        float delaySampleRight = interpolatedValue(rightCircularBuffer[delayReadHeadConcat],
-                                                  rightCircularBuffer[nextBufferValue],
-                                                  delayReadHeadPhase);
-        
-        //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
-        //These are output signals
-        feedbackLeft = delaySampleLeft * feedbackParam->get();
-        feedbackRight = delaySampleRight * feedbackParam->get();
-        
-        float drySampleLeft = buffer.getSample(0, sample);
-        float drySampleRight = buffer.getSample(1, sample);
-        
-        //Adds the delay on top of the current buffer
-        buffer.setSample(0, sample, drySampleLeft * (1 - dryWetParam->get()) +
-                         delaySampleLeft * dryWetParam->get());
-        buffer.setSample(1, sample, drySampleRight * (1 - dryWetParam->get()) +
-                         delaySampleRight * dryWetParam->get());
-        
-        //Moves on to the next node in the buffer
-        bufferWriteHead++;
-        
-        //Switches buffer back to 0 once it goes beyond the length
-        if (bufferWriteHead >= circularBufferLength) {
-            bufferWriteHead = 0;
-        }
+        applyDelayToChannels(buffer, sample);
         
     }
 }
