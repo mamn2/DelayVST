@@ -67,3 +67,6 @@ The length of the delay is equal to sample rate * delayTime(in seconds). For exa
 Delays are stored in a data structure called a circular buffer in order to conserve memory and avoid overloading the RAM. In the case of delays it is safe to overwrite the old data since the delayed signal will already have played back by then. You can read about circular buffers here: https://en.wikipedia.org/wiki/Circular_buffer
 
 
+## Testing
+
+Testing is fairly difficult with audio files. I have found that the most effective way of testing is by adjusting your parameters on a sine wave.

@@ -11,6 +11,8 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <iostream>
+
 //==============================================================================
 DelayPluginAudioProcessor::DelayPluginAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations

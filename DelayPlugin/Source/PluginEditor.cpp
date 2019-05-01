@@ -24,7 +24,6 @@ DelayPluginAudioProcessorEditor::DelayPluginAudioProcessorEditor (DelayPluginAud
     const float** inputChannel = const_cast<const float**>(&(processor.channelLeft));
     
     liveAudioScroller.audioDeviceIOCallback(inputChannel, 1, &(processor.channelLeft), 1, 2);
-  //  DBG(audioDeviceManager.getCurrentAudioDeviceType());
     
     connectSliderToParam(0, 0, 60, 100, 100, gainControlSlider);
     connectSliderToParam(1, 100, 60, 100, 100, delayTimeSlider);
