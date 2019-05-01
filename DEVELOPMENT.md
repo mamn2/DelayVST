@@ -29,6 +29,8 @@ Interpolation is a technique for inferring a data point between 2 data points. I
 
 When we change our delay parameter, we have to tell the audio processor to replay the signal after a certain amount of time. However, the audio processor doesn't really have a concept of time, and so instead it uses samples. So we have to tell it how many samples are in between 2 playings. But in order to do this we have to convert time (in seconds) to number of samples. Time is represented as a floating point value, and therefore multiplying it by an integer can get you a value that is not an integer. For example if we set our delay time to be .555 seconds, the delay time converted to samples is 24,475.5. However samples are not floating point values, a sample is represented as an integer (obviously), so there is no index in the buffer for this value. 
 
+We fix this using interpolation. In this case we are going to use a simple method called linear interpolation. If the sample it wants us to read from is 24,475.5 for example, we will take the value at 24,275, and the value at 24,476 and draw a line between them. We will then get the point halfway through thatk line (since the decimal is .5). If the decimal was .33, we would take the value 1/3 the way through, and so on. 
+
 ## Cross Platform Audio Development
 
 Different platforms (Mac, Windows, etc.) sometimes use different plug-in formats. For example, Windows uses VST and most cross-platform DAWs like Ableton Live will also use VSTs. Apple invented their own plugin format called AU which is used for GarageBand, etc. JUCE framework allows for cross-platform development of audio plugins so that we don't need to write separate code for the plugins.

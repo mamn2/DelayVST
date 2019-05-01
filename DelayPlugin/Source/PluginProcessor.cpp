@@ -40,6 +40,7 @@ DelayPluginAudioProcessor::DelayPluginAudioProcessor()
     bufferWriteHead = 0;
     delayReadHead = 0;
     delayTimeSamples = 0;
+    delayTimeSmoothValue = 0;
     
     feedbackLeft = 0;
     feedbackRight = 0;
@@ -132,11 +133,18 @@ void DelayPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPer
         leftCircularBuffer = new float[circularBufferLength];
     }
     
+    //zeroes all the memory in left buffer
+    zeromem(leftCircularBuffer, circularBufferLength * sizeof(float));
+    
     if (rightCircularBuffer == nullptr) {
         rightCircularBuffer = new float[circularBufferLength];
     }
     
+    //zeroes all the memory in right buffer
+    zeromem(rightCircularBuffer, circularBufferLength * sizeof(float));
+    
     bufferWriteHead = 0;
+    delayTimeSmoothValue = delayTimeParam->get();
 }
 
 void DelayPluginAudioProcessor::releaseResources()
@@ -186,8 +194,8 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
     
     delayTimeSamples = getSampleRate() * delayTimeParam->get();
 
-    float* channelLeft = buffer.getWritePointer(0);
-    float* channelRight = buffer.getWritePointer(1);
+    channelLeft = buffer.getWritePointer(0);
+    channelRight = buffer.getWritePointer(1);
 
     // ..do something to the data...
     for (int sample = 0; sample < buffer.getNumSamples(); sample++)
@@ -206,6 +214,9 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
         
         //---------------DELAY-----------------//
         
+        delayTimeSmoothValue = delayTimeSmoothValue - .001 * (delayTimeSmoothValue - delayTimeParam->get());
+        delayTimeSamples = getSampleRate() * delayTimeSmoothValue;
+        
         leftCircularBuffer[bufferWriteHead] = channelLeft[sample] + feedbackLeft;
         rightCircularBuffer[bufferWriteHead] = channelRight[sample] + feedbackRight;
         
@@ -215,8 +226,20 @@ void DelayPluginAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBu
             delayReadHead += circularBufferLength;
         }
         
-        float delaySampleLeft = leftCircularBuffer[(int)delayReadHead];
-        float delaySampleRight = rightCircularBuffer[(int)delayReadHead];
+        int delayReadHeadConcat = (int) delayReadHead;
+         //calculates the decimal value in the read head. Ex: if delayReadHead is 555.5, then delayReadHeadFloat = .5, this is the phase value for linear interpolation
+        float delayReadHeadPhase = delayReadHead - delayReadHeadConcat;
+        int nextBufferValue = delayReadHeadConcat + 1;
+        if (nextBufferValue > circularBufferLength) {
+            nextBufferValue -= circularBufferLength;
+        }
+        
+        float delaySampleLeft = interpolatedValue(leftCircularBuffer[delayReadHeadConcat],
+                                                  leftCircularBuffer[nextBufferValue],
+                                                  delayReadHeadPhase);
+        float delaySampleRight = interpolatedValue(rightCircularBuffer[delayReadHeadConcat],
+                                                  rightCircularBuffer[nextBufferValue],
+                                                  delayReadHeadPhase);
         
         //Causes the feedback look by multiplting the delay by a coefficient, diminishing effect over time
         //These are output signals
@@ -266,6 +289,10 @@ void DelayPluginAudioProcessor::setStateInformation (const void* data, int sizeI
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+float DelayPluginAudioProcessor::interpolatedValue(float sampleOne, float sampleTwo, float phase) {
+    return (1 - phase) * sampleOne + phase * sampleTwo;
 }
 
 //==============================================================================

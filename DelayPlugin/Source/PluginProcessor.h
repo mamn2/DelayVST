@@ -56,6 +56,12 @@ public:
     //==============================================================================
     void getStateInformation (MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
+    
+    //calculates an interpolated value using the linear interpolation method. 
+    float interpolatedValue(float sampleOne, float sampleTwo, float phase);
+    
+    float* channelLeft;
+    float* channelRight;
 
 private:
 
@@ -79,11 +85,12 @@ private:
     int circularBufferLength;
     float delayTimeSamples;
     float delayReadHead;
+    float delayTimeSmoothValue;
     
     //feedback values
     float feedbackLeft;
     float feedbackRight;
-    
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DelayPluginAudioProcessor)
 };

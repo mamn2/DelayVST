@@ -12,6 +12,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "PluginProcessor.h"
+#include "/Users/mohamedamn/Downloads/JUCE/examples/Assets/AudioLiveScrollingDisplay.h"
 
 //==============================================================================
 /**
@@ -34,6 +35,8 @@ private:
     Slider delayTimeSlider;
     Slider dryWetSlider;
     Slider feedbackSlider;
+    
+    LiveScrollingAudioDisplay liveAudioScroller;
     
     DelayPluginAudioProcessor& processor;
 
